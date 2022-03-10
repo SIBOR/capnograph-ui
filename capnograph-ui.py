@@ -50,7 +50,7 @@ from PyQt5 import QtGui, QtSerialPort
 
 
 ### Import section for test files
-df = pd.read_csv (r'capnographUI\10b1.csv')
+df = pd.read_csv (r'10by10NT-10.csv')
 dffl = df['Flow SLPM']
 dffl = dffl.dropna()
 dffl = dffl.reset_index(drop=True)
@@ -432,7 +432,7 @@ class MainUI(QMainWindow):
         self.lineEdit_risingTriggerLevel.setText(str(self.floTrig))                # Display Default Value.
         self.pushbutton_integUpdate = QPushButton("Update")
         font = QtGui.QFont()
-        font.setPointSize(16)                                                               # Font size to be used. 20 is minimum for "at-a-glance" readability.
+        font.setPointSize(14)                                                               # Font size to be used. 20 is minimum for "at-a-glance" readability.
         self.groupBox_integrator.setFont(font)
         self.groupBox_integrator_layout = QGridLayout()
         self.groupBox_integrator_layout.addWidget(self.label_risingTriggerLevel, 0,0)
@@ -449,7 +449,7 @@ class MainUI(QMainWindow):
         self.lineEdit_coRisingTriggerLevel.setText(str(self.coTrig))           # Display default value.
         self.pushbutton_coIntegUpdate = QPushButton("Update")
         font = QtGui.QFont()
-        font.setPointSize(16)                                                               # Font size to be used. 20 is minimum for "at-a-glance" readability.
+        font.setPointSize(14)                                                               # Font size to be used. 20 is minimum for "at-a-glance" readability.
         self.groupBox_coIntegrator.setFont(font)
         self.groupBox_coIntegrator_layout = QGridLayout()
         self.groupBox_coIntegrator_layout.addWidget(self.label_coRisingTriggerLevel, 0,0)
@@ -466,7 +466,7 @@ class MainUI(QMainWindow):
         self.lineEdit_dataPts.setText("500")                                                # Change to default length of deque used.
         self.pushbutton_dataUpdate = QPushButton("Update")
         font = QtGui.QFont()
-        font.setPointSize(16)                                                               # Font size to be used. 20 is minimum for "at-a-glance" readability.
+        font.setPointSize(14)                                                               # Font size to be used. 20 is minimum for "at-a-glance" readability.
         self.groupBox_dataPoints.setFont(font)
         self.groupBox_dataPoints_layout = QGridLayout()
         self.groupBox_dataPoints_layout.addWidget(self.label_dataPts, 0,0)
@@ -489,7 +489,7 @@ class MainUI(QMainWindow):
         self.buttonBox_flowEnable.button(QDialogButtonBox.Cancel).setText('Disconnect')             # Button label name.
         self.buttonBox_flowEnable.button(QDialogButtonBox.Ok).setText('Connect')                    # Button label name.
         font = QtGui.QFont()
-        font.setPointSize(12)                                                               # Font size to be used. 20 is minimum for "at-a-glance" readability.
+        font.setPointSize(10)                                                               # Font size to be used. 20 is minimum for "at-a-glance" readability.
         self.groupBox_flow.setFont(font)
         self.groupBox_flow_layout = QGridLayout()
         self.groupBox_flow_layout.addWidget(self.label_flowIP, 0,0)
@@ -517,7 +517,7 @@ class MainUI(QMainWindow):
         self.buttonBox_coEnable.button(QDialogButtonBox.Cancel).setText('Disconnect')               # Button label.
         self.buttonBox_coEnable.button(QDialogButtonBox.Ok).setText('Connect')                      # Button label.
         font = QtGui.QFont()
-        font.setPointSize(12)                                                               # Font size to be used. 20 is minimum for "at-a-glance" readability.
+        font.setPointSize(10)                                                               # Font size to be used. 20 is minimum for "at-a-glance" readability.
         self.groupBox_coMeter.setFont(font)
         self.groupBox_co_layout = QGridLayout()
         self.groupBox_co_layout.addWidget(self.label_baudRate, 0,0)
@@ -540,7 +540,7 @@ class MainUI(QMainWindow):
         self.buttonBox_saveEnable.button(QDialogButtonBox.Cancel).setEnabled(False)                 # Disabled by default. Used to indicate current save state. Enabled when actively saving.
         self.buttonBox_saveEnable.button(QDialogButtonBox.Ok).setText('Save')
         font = QtGui.QFont()
-        font.setPointSize(16)                                                               # Font size to be used. 20 is minimum for "at-a-glance" readability.
+        font.setPointSize(14)                                                               # Font size to be used. 20 is minimum for "at-a-glance" readability.
         self.groupBox_save.setFont(font)
         self.groupBox_save_layout = QGridLayout()
         self.groupBox_save_layout.addWidget(self.label_saveName, 0,0)
