@@ -50,7 +50,7 @@ from PyQt5 import QtGui, QtSerialPort
 
 
 ### Import section for test files
-df = pd.read_csv (r'10by10NT-10.csv')
+df = pd.read_csv (r'10by10NT-1.csv')
 dffl = df['Flow SLPM']
 dffl = dffl.dropna()
 dffl = dffl.reset_index(drop=True)
@@ -99,6 +99,9 @@ class FlowSensorWorker(QObject):
         while(self.enableChk == False):
             if (self.enableVar == False):
                 break
+            sleep(0.05)
+            self.newData.emit(0, dffl[i])
+            i = i+1
 
         # Loop for reading flow meter output
         while(self.enableChk == True):
@@ -155,13 +158,19 @@ class CoSensorWorker(QObject):
 
         # Pass when enable is off
         while(self.enableChk == False):
-            break
+            
+            if(self.enableVar == False):
+                break
+            sleep(0.05)
+            self.newData.emit(1, dfco[i])
+            i = i+1
 
         # Loop for reading sensor responses
         while(self.enableChk == True):
             if(self.enableVar == False):
                 break
             
+
             # This block waits for serial response for data emission. For read errors
             try:
                 newItem = int(re.findall('\d+', self.coCon.readline().decode())[1]) * 10    # Index can be changed to 0 for the device filtered value or 1 for the (faster) raw output.
@@ -499,8 +508,8 @@ class MainUI(QMainWindow):
         self.groupBox_flow_layout.addWidget(self.buttonBox_flowEnable, 2,1)
         self.groupBox_flow.setLayout(self.groupBox_flow_layout)
         self.groupBox_flow.setSizePolicy(sizePolicy)
-        #self.buttonBox_flowEnable.accepted.connect(self.runFlowSensor)                              # Connect "Connect" button to the runFlowSensor function.
-        #self.buttonBox_flowEnable.rejected.connect(self.killFlowSensor)                             # Connect "Disconnect" button to the killFlowSensor function. TODO connect
+        self.buttonBox_flowEnable.accepted.connect(self.runFlowSensor)                              # Connect "Connect" button to the runFlowSensor function.
+        self.buttonBox_flowEnable.rejected.connect(self.killFlowSensor)                             # Connect "Disconnect" button to the killFlowSensor function. TODO connect
 
         # Create widget for managing CO2 meter connection
         self.groupBox_coMeter = QGroupBox("Co2Meter Settings")
@@ -788,6 +797,7 @@ class MainUI(QMainWindow):
                 self.floSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 self.floSocket.connect((self.flowIP, self.flowPort))
                 
+                
                 # send a break command to clear any previous commands sent across the connection.
                 self.floSocket.sendall(b'BREAK\r')
                 
@@ -822,6 +832,60 @@ class MainUI(QMainWindow):
         self.worker.enableVar = False           # Use the worker variable to close the running loop.
 
 
+
+# Function for performing UI and calculation updates
+    # Used on every sensor update. Takes an index value 'index' to indicate either 0:the flow methods, or 1: the co2 methods
+    def dataUpdate(self, index, n): 
+
+        # This section operates the updates relating to the flow meter readings.
+        if(index == 0):
+            
+            flowNow = datetime.now()                        # Fetch current datetime reference
+            flowXTime = flowNow.timestamp()             
+            
+            # Append current time and reading to flow graph deque.
+            self.flowX.append(flowXTime)
+            self.flowY.append(n)
+
+            # Try to perform integration math.
+            try:
+                self.integY.append(0) # TODO Replace with real
+                self.integX.append(flowXTime)
+            # If the integrator fails, the result is expected to be zero.
+            # The integrator should give its own error message.
+            except:
+                self.integX.append(flowXTime)
+                self.integY.append(0)
+
+            # Apply the changed data sets as new curves.
+            self.graphWindow.curve1.setData(self.flowX, self.flowY)
+            self.graphWindow.curve4.setData(self.integX, self.integY)
+
+            # Save the new flow information
+            with open(self.saveName, 'a', newline='') as csvfile:
+                cwriter = csv.writer(csvfile, delimiter=',',
+                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
+                cwriter.writerow([flowNow,n,None,None,None,None,None,None])
+
+
+        # This section operates the data updates relating to co2 meter readings.   
+        if(index == 1):
+
+            now = datetime.now()                    # Fetch the current datetime reference.
+            xTime = now.timestamp()
+            self.coX.append(xTime)                  
+            self.coY.append(n)                      # Apply the new reading to the graph data deque.
+
+            # Save the new CO2 reading.
+            with open(self.saveName, 'a', newline='') as csvfile:
+                cwriter = csv.writer(csvfile, delimiter=',',
+                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
+                cwriter.writerow([None,None,now,n,None,None,None,None])
+            
+            # Apply the new deques as curve data.
+            self.graphWindow.curve2.setData(self.coX, self.coY)
+
+            
 
 
 # Initial setup and function calls needed for operation
