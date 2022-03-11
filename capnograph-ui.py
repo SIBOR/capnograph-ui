@@ -50,7 +50,7 @@ from PyQt5 import QtGui, QtSerialPort
 
 
 ### Import section for test files
-df = pd.read_csv (r'10by10NT-1.csv')
+df = pd.read_csv (r'Josh-H_10-Strong-Breaths_03-03-2022.csv')
 dffl = df['Flow SLPM']
 dffl = dffl.dropna()
 dffl = dffl.reset_index(drop=True)
@@ -177,7 +177,6 @@ class CoSensorWorker(QObject):
                 self.newData.emit(1, newItem)
                 self.oldData.append(newItem)
                 self.coCon.reset_input_buffer() # Buffer needs to be reset fairly often to prevent buffer delay.
-                sleep(0.04) # TODO: remove this?
 
             # Report failure and add a zero reading for post-processing cleanup. Sleep to allow meter to catchup in case of device lag.
             except:
@@ -223,10 +222,13 @@ class MainUI(QMainWindow):
         self.veVco2Y = collections.deque([0], 500)              # Deque holding y values for ve/Vco2 calculations
         self.floTrig = 0.0                                      # Value for trigger level of flow integration in SLPM
         self.coTrig = 0.0                                       # Value for trigger level of co2 integration in ppm
+        self.integratedCo =  0.0                            # Value for holding the total integrated value of co2 over the test
+        self.integratedCoPts = 0                                # Value for holding the number of points integrated
+        self.veVco2Val = collections.deque([0],500)                                # Value for holding the value 
 
-        
         # Plot initialization
         self.graphWindow = pg.GraphicsWindow()
+        self.graphWindow.setMinimumSize(400,400)
         self.setupPlot()
 
         # Tab display initialization
@@ -664,6 +666,7 @@ class MainUI(QMainWindow):
                 self.integY = collections.deque([0], newVal)               # Deque holding y integrated flow values. Size may be changed by user in setDataPts and will be re-initialized.
                 self.veVco2X = collections.deque([xTime], newVal)          # Deque holding x datetime values for ve/Vco2 calculations
                 self.veVco2Y = collections.deque([0], newVal)  
+                self.veVco2Val = collections.deque([0],newVal)
         
             # Nothing will change if the user entry fails to convert to an integer.
             except:
@@ -882,10 +885,24 @@ class MainUI(QMainWindow):
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
                 cwriter.writerow([None,None,now,n,None,None,None,None])
             
+            self.veVco2(n)
             # Apply the new deques as curve data.
             self.graphWindow.curve2.setData(self.coX, self.coY)
+            self.graphWindow.curve3.setData(self.coX, self.veVco2Val)
 
             
+
+    def veVco2(self, n):
+        
+        if (n > 10000):
+            self.integratedCo = self.integratedCo + ((n / 1000000) * 0.05)
+            self.integratedCoPts = self.integratedCoPts + 1
+            self.veVco2Val.append(1/(self.integratedCo/(self.integratedCoPts*.05)))
+            self.tabAvg.label_veVc.setText("{:0.3f} VE/VCO2".format(1/(self.integratedCo/(self.integratedCoPts*.05))))
+        else:
+            self.veVco2Val.append(0)
+        
+
 
 
 # Initial setup and function calls needed for operation
