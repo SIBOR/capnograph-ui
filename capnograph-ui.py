@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Breath Sensor UI and Monitor Program Version 10.0
+# Breath Sensor UI and Monitor Program Version 10.1
 
 # Python 3.9.5 64-bit Windows
 
@@ -221,9 +221,10 @@ class MainUI(QMainWindow):
         self.veVco2X = collections.deque([xTime], 500)          # Deque holding x datetime values for ve/Vco2 calculations
         self.veVco2Y = collections.deque([0], 500)              # Deque holding y values for ve/Vco2 calculations
         self.floTrig = 0.0                                      # Value for trigger level of flow integration in SLPM
-        self.coTrig = 0.0                                       # Value for trigger level of co2 integration in ppm
+        self.coTrig = 20000.0                                   # Value for trigger level of co2 integration in ppm
         self.integratedCo =  0.0                            # Value for holding the total integrated value of co2 over the test
         self.integratedCoPts = 0                                # Value for holding the number of points integrated
+        self.integratedCoTime = collections.deque([now, now], 5)
         self.veVco2Val = collections.deque([0],500)                                # Value for holding the value 
 
         # Plot initialization
@@ -453,6 +454,23 @@ class MainUI(QMainWindow):
         self.groupBox_integrator.setSizePolicy(sizePolicy)
         self.pushbutton_integUpdate.clicked.connect(self.setIntegPts)                       # Connect update button to setIntegPts function.
 
+        #Create Reset Widget
+        self.groupBox_reset = QGroupBox("Reset")                  # Use a string to set the name of the box.
+        self.label_reset = QLabel("RESET AVERAGE:")
+        self.label_resetmt = QLabel("")
+        self.label_reset.setStyleSheet("color: red;")
+        self.pushbutton_reset = QPushButton("RESET")
+        font = QtGui.QFont()
+        font.setPointSize(14)                                                               # Font size to be used. 20 is minimum for "at-a-glance" readability.
+        self.groupBox_reset.setFont(font)
+        self.groupBox_reset_layout = QGridLayout()
+        self.groupBox_reset_layout.addWidget(self.label_reset, 0,0)
+        self.groupBox_reset_layout.addWidget(self.pushbutton_reset, 1,0)
+        self.groupBox_reset_layout.addWidget(self.label_resetmt, 2, 0)
+        self.groupBox_reset.setLayout(self.groupBox_reset_layout)
+        self.groupBox_reset.setSizePolicy(sizePolicy)
+        self.pushbutton_reset.clicked.connect(self.resetAvg)
+
         # Create CO2 Integrator widget
         self.groupBox_coIntegrator = QGroupBox("Integrator Controls (Co2 ppm)")             # Use string to label the box.
         self.label_coRisingTriggerLevel = QLabel("Trigger Level:")
@@ -569,16 +587,26 @@ class MainUI(QMainWindow):
         # Assign each widget to a grid layout
         layout = QGridLayout()
         layout.addWidget(self.tabs, 0, 0, 4, 4)
-        layout.addWidget(self.groupBox_coIntegrator, 0, 4, 2, 3)
-        layout.addWidget(self.groupBox_dataPoints, 0, 10, 2, 3)
-        layout.addWidget(self.groupBox_integrator, 2, 4, 2, 3)
-        layout.addWidget(self.groupBox_flow, 0, 7, 2, 3)
-        layout.addWidget(self.groupBox_coMeter, 2, 7, 2, 3)
-        layout.addWidget(self.groupBox_save, 2, 10, 2, 3)
-        layout.addWidget(self.graphWindow, 4, 0, 10, 13)
+        layout.addWidget(self.groupBox_reset, 0, 4, 4, 1)
+        layout.addWidget(self.groupBox_coIntegrator, 0, 5, 2, 3)
+        layout.addWidget(self.groupBox_dataPoints, 0, 11, 2, 3)
+        layout.addWidget(self.groupBox_integrator, 2, 5, 2, 3)
+        layout.addWidget(self.groupBox_flow, 0, 8, 2, 3)
+        layout.addWidget(self.groupBox_coMeter, 2, 8, 2, 3)
+        layout.addWidget(self.groupBox_save, 2, 11, 2, 3)
+        layout.addWidget(self.graphWindow, 4, 0, 11, 14)
         self.centralWidget.setLayout(layout)
 
 
+    def resetAvg(self):
+        try:
+            now = datetime.now()
+            self.integratedCo =  0.0                            # Value for holding the total integrated value of co2 over the test
+            self.integratedCoPts = 0                                # Value for holding the number of points integrated
+            self.tabAvg.label_veVc.setText("{:0.3f} VE/VCO2".format(0.00))
+
+        except:
+            print("Could not reset!")
     # Function for changing the save file
     # Uses the user entry for self.linedit_savename as a file name.
     # Can have poor results if file is not named as a standard name.csv.
@@ -894,8 +922,17 @@ class MainUI(QMainWindow):
 
     def veVco2(self, n):
         
-        if (n > 10000):
-            self.integratedCo = self.integratedCo + ((n / 1000000) * 0.05)
+        if (n > self.coTrig):
+            now = datetime.now()                                    # Initial datetime reference
+            self.integratedCoTime.append(now)
+
+            #print((self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds())
+            if ((self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() > 0.06 or (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() < 0.04):
+                self.integratedCo = self.integratedCo + ((n / 1000000) * 0.05)
+            
+            else:
+                self.integratedCo = self.integratedCo + ((n / 1000000) * (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds())
+            
             self.integratedCoPts = self.integratedCoPts + 1
             self.veVco2Val.append(1/(self.integratedCo/(self.integratedCoPts*.05)))
             self.tabAvg.label_veVc.setText("{:0.3f} VE/VCO2".format(1/(self.integratedCo/(self.integratedCoPts*.05))))
