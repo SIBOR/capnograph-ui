@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-# Breath Sensor UI and Monitor Program Version 10.0
+# Breath Sensor UI and Monitor Program Version 10.1
 
-# Python 3.9.6 64-bit Windows
+# Python 3.9.5 64-bit Windows
 
 
 
@@ -18,7 +18,7 @@ __author__ = "Joshua Hale"
 #__copyright__ = 'Copyright {year}, {project_name}'
 __credits__ = ["Joshua Hale"]
 #__license__ = '{license}'
-__version__ = "10.0"
+__version__ = "10.1"
 __maintainer__ = "Joshua Hale"
 __email__ = "averyhale95@gmail.com"
 __status__ = "In Development"
