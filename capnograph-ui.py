@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-# Breath Sensor UI and Monitor Program Version 10.1
+# Breath Sensor UI and Monitor Program Version 10.0
 
-# Python 3.9.5 64-bit Windows
+# Python 3.9.6 64-bit Windows
 
 
 
@@ -50,7 +50,7 @@ from PyQt5 import QtGui, QtSerialPort
 
 
 ### Import section for test files
-df = pd.read_csv (r'Josh-H_10-Strong-Breaths_03-03-2022.csv')
+df = pd.read_csv (r'co2breathtypes.csv')
 dffl = df['Flow SLPM']
 dffl = dffl.dropna()
 dffl = dffl.reset_index(drop=True)
