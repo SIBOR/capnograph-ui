@@ -227,12 +227,14 @@ class MainUI(QMainWindow):
         self.integratedCoTime = collections.deque([now, now], 5)
         self.veVco2Val = collections.deque([0],500)                                # Value for holding the value 
         self.maxCo2Val = 0.0                                    # Maximum CO2 value read per session.
+        self.maxCo2ValLast = 0.0
         self.volBreathsQ = collections.deque([], 100)               # Deque for holding volume of each breath average is displayed
         self.curVol = collections.deque([0], 500)                                      # Variable holding current breath volume
         self.startVolTime = datetime.now()                                    # Initial datetime reference
         self.stopVolTime = datetime.now()                                    # Initial datetime reference
         self.volFlag = False
-        
+        self.coFlag = False
+
         # Plot initialization
         self.graphWindow = pg.GraphicsWindow()
         self.graphWindow.setMinimumSize(400,400)
@@ -372,7 +374,7 @@ class MainUI(QMainWindow):
             with open(self.saveName, 'w', newline='') as csvfile:                                                       # 'w' for write mode.
                 cwriter = csv.writer(csvfile, delimiter=',',                                                            # Use comma seperation for compatability with excel and sheets.
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
-                cwriter.writerow(["Datetime1","Flow SLPM","Datetime2","CO2 ppm","Datetime3","VE","Datetime4","VCO2"])   # Use this to control formatting and column names.
+                cwriter.writerow(["Datetime1","Flow SLPM","Datetime2","CO2 ppm","Datetime3","VE","Datetime3","VE over VCO2", "Datetime4","CO2Peak"])   # Use this to control formatting and column names.
         
         # If the file exists, set the file to append mode.
         else :
@@ -637,7 +639,7 @@ class MainUI(QMainWindow):
                 with open(self.saveName, 'w', newline='') as csvfile:
                     cwriter = csv.writer(csvfile, delimiter=',',
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
-                    cwriter.writerow(["Datetime1","Flow SLPM","Datetime2","CO2 ppm","Datetime3","VE","Datetime4","VCO2"])
+                    cwriter.writerow(["Datetime1","Flow SLPM","Datetime2","CO2 ppm","Datetime3","VE","Datetime3","VE over VCO2", "Datetime4","CO2Peak"])
             
             # Append to the file if it does not already exist.
             else :
@@ -668,7 +670,8 @@ class MainUI(QMainWindow):
             with open(self.saveName, 'w', newline='') as csvfile:
                 cwriter = csv.writer(csvfile, delimiter=',',
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
-                cwriter.writerow(["Datetime1","Flow SLPM","Datetime2","CO2 ppm","Datetime3","VE","Datetime4","VCO2"])
+                cwriter.writerow(["Datetime1","Flow SLPM","Datetime2","CO2 ppm","Datetime3","VE","Datetime3","VE over VCO2", "Datetime4","CO2Peak"])
+            
         
         # Else continue by appending to the new file.
         # Note this will NOT add any readings collected during the save session to the default file.
@@ -907,7 +910,7 @@ class MainUI(QMainWindow):
             with open(self.saveName, 'a', newline='') as csvfile:
                 cwriter = csv.writer(csvfile, delimiter=',',
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
-                cwriter.writerow([flowNow,n,None,None,None,None,None,None])
+                cwriter.writerow([flowNow,n,None,None,None,None,None,None,None,None])
             self.volBreath(n)
 
 
@@ -923,7 +926,7 @@ class MainUI(QMainWindow):
             with open(self.saveName, 'a', newline='') as csvfile:
                 cwriter = csv.writer(csvfile, delimiter=',',
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
-                cwriter.writerow([None,None,now,n,None,None,None,None])
+                cwriter.writerow([None,None,now,n,None,None,None,None,None,None])
             
             self.veVco2(n)
 
@@ -954,15 +957,45 @@ class MainUI(QMainWindow):
             self.veVco2Val.append(0)
 
     def co2Max(self, n):
-        
+        pass
+    """
+        now = datetime.now()
+        if(self.coFlag == False):
+            if(n >= self.coTrig):
+                self.maxCo2ValLast = n
+                self.volFlag = True
+            
+            else:
+                pass
+
+        if(self.volFlag == True):
+            if(n >= self.coTrig):
+                self.curVol.append(n*(5/6000))
+            
+            else:
+                self.volBreathsQ.append(sum(self.curVol))
+                self.tabCur.label_vol.setText("{:0.3f} L Air".format(self.volBreathsQ[-1]))
+                # Save the new VE reading.
+                with open(self.saveName, 'a', newline='') as csvfile:
+                    cwriter = csv.writer(csvfile, delimiter=',',
+                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
+                    cwriter.writerow([None,None,None,None,now,self.curVol,None,None,None,None])
+                self.curVol = collections.deque([], 500)
+                
+                self.tabAvg.label_vol.setText("{:0.3f} L Air".format(sum(self.volBreathsQ)/len(self.volBreathsQ)))
+                self.volFlag = False
+
+
         if (n > self.maxCo2Val):
             self.maxCo2Val = n
             self.tabAvg.label_percPk.setText("{:0.3f} % Peak CO2".format(self.maxCo2Val/10000))
 
         return
+    """
 
     def volBreath(self, n):
         now = datetime.now()
+        volNow = now.timestamp()
         if(self.volFlag == False):
             if(n >= self.floTrig):
                 self.curVol.append(n*(5/6000))
@@ -982,9 +1015,9 @@ class MainUI(QMainWindow):
                 with open(self.saveName, 'a', newline='') as csvfile:
                     cwriter = csv.writer(csvfile, delimiter=',',
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
-                    cwriter.writerow([None,None,None,None,None,None,self.curVol,now])
+                    cwriter.writerow([None,None,None,None,volNow,self.volBreathsQ[-1],None,None,None,None])
                 self.curVol = collections.deque([], 500)
-                print(self.volBreathsQ)
+                
                 self.tabAvg.label_vol.setText("{:0.3f} L Air".format(sum(self.volBreathsQ)/len(self.volBreathsQ)))
                 self.volFlag = False
 
