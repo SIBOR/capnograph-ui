@@ -266,10 +266,11 @@ class MainUI(QMainWindow):
         
         # Setup size policy for managing container display size
         # Square stretch sizes are ideal for performance. If altered, tab label sizes will also need to change.
-        sizePolicy = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        sizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         self.tabs.setSizePolicy(sizePolicy)
+        self.tabs.setFixedWidth(1)
 
         # Set up a groupbox inside the second tab to recieve tab details
         # Needed as directly placing the display will alter size on some screen dimensions.
@@ -443,7 +444,7 @@ class MainUI(QMainWindow):
 
         # Set overall window settings.
         self.setWindowTitle("Breath Sensor v10.2")                                         # Name to appear in toolbar
-        self.setGeometry(300,150)                                                               # Default size (only used when not initialized in fullscreen)
+        self.resize(300,150)                                                               # Default size (only used when not initialized in fullscreen)
         
         # Create a central widget and apply it to the ui object.
         self.centralWidget = QWidget()
@@ -593,6 +594,7 @@ class MainUI(QMainWindow):
         self.buttonBox_saveEnable.rejected.connect(self.stopSave)                                   # Connect the "Stop" button with the stopSave function
         
         # Apply size policy to graph window
+
         self.graphWindow.setSizePolicy(sizePolicy)
 
 
