@@ -957,41 +957,43 @@ class MainUI(QMainWindow):
             self.veVco2Val.append(0)
 
     def co2Max(self, n):
-        pass
-    """
+    
         now = datetime.now()
+        coNow = now.timestamp()
+
         if(self.coFlag == False):
             if(n >= self.coTrig):
+                if(n > self.maxCo2Val):
+                    self.maxCo2Val = n
+
                 self.maxCo2ValLast = n
-                self.volFlag = True
+                self.coFlag = True
             
             else:
                 pass
 
-        if(self.volFlag == True):
+        if(self.coFlag == True):
             if(n >= self.coTrig):
-                self.curVol.append(n*(5/6000))
+                if(n > self.maxCo2Val):
+                    self.maxCo2Val = n
+                if(n > self.maxCo2ValLast):
+                    self.maxCo2ValLast = n
             
             else:
-                self.volBreathsQ.append(sum(self.curVol))
-                self.tabCur.label_vol.setText("{:0.3f} L Air".format(self.volBreathsQ[-1]))
-                # Save the new VE reading.
+                self.tabCur.label_percPk.setText("{:0.3f}%".format(self.maxCo2ValLast/10000))
+                # Save the new Peak CO2 reading.
                 with open(self.saveName, 'a', newline='') as csvfile:
                     cwriter = csv.writer(csvfile, delimiter=',',
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
-                    cwriter.writerow([None,None,None,None,now,self.curVol,None,None,None,None])
-                self.curVol = collections.deque([], 500)
+                    cwriter.writerow([None,None,None,None,None,None,None,None,coNow,self.maxCo2ValLast])
                 
-                self.tabAvg.label_vol.setText("{:0.3f} L Air".format(sum(self.volBreathsQ)/len(self.volBreathsQ)))
-                self.volFlag = False
-
-
-        if (n > self.maxCo2Val):
-            self.maxCo2Val = n
-            self.tabAvg.label_percPk.setText("{:0.3f} % Peak CO2".format(self.maxCo2Val/10000))
+                self.maxCo2ValLast = 0.0
+                
+                self.tabAvg.label_percPk.setText("{:0.3f}%".format(self.maxCo2Val/10000))
+                self.coFlag = False
 
         return
-    """
+    
 
     def volBreath(self, n):
         now = datetime.now()
