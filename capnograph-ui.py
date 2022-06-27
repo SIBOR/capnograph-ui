@@ -50,14 +50,14 @@ from PyQt5 import QtGui, QtSerialPort
 
 
 ### Import section for test files
-df = pd.read_csv (r'co2breathtypes.csv')
+df = pd.read_csv (r'Hale 3 br types.csv')
+
 dffl = df['Flow SLPM']
 dffl = dffl.dropna()
 dffl = dffl.reset_index(drop=True)
 dfco = df['CO2 ppm']
 dfco = dfco.dropna()
 dfco = dfco.reset_index(drop=True)
-
 
 
 ### Class for custom timestamp X axis on plots
@@ -220,13 +220,19 @@ class MainUI(QMainWindow):
         self.integY = collections.deque([0], 500)               # Deque holding y integrated flow values. Size may be changed by user in setDataPts and will be re-initialized.
         self.veVco2X = collections.deque([xTime], 500)          # Deque holding x datetime values for ve/Vco2 calculations
         self.veVco2Y = collections.deque([0], 500)              # Deque holding y values for ve/Vco2 calculations
-        self.floTrig = 0.0                                      # Value for trigger level of flow integration in SLPM
+        self.floTrig = 10.0                                      # Value for trigger level of flow integration in SLPM
         self.coTrig = 20000.0                                   # Value for trigger level of co2 integration in ppm
         self.integratedCo =  0.0                            # Value for holding the total integrated value of co2 over the test
         self.integratedCoPts = 0                                # Value for holding the number of points integrated
         self.integratedCoTime = collections.deque([now, now], 5)
         self.veVco2Val = collections.deque([0],500)                                # Value for holding the value 
-
+        self.maxCo2Val = 0.0                                    # Maximum CO2 value read per session.
+        self.volBreathsQ = collections.deque([], 100)               # Deque for holding volume of each breath average is displayed
+        self.curVol = collections.deque([0], 500)                                      # Variable holding current breath volume
+        self.startVolTime = datetime.now()                                    # Initial datetime reference
+        self.stopVolTime = datetime.now()                                    # Initial datetime reference
+        self.volFlag = False
+        
         # Plot initialization
         self.graphWindow = pg.GraphicsWindow()
         self.graphWindow.setMinimumSize(400,400)
@@ -604,7 +610,12 @@ class MainUI(QMainWindow):
             self.integratedCo =  0.0                            # Value for holding the total integrated value of co2 over the test
             self.integratedCoPts = 0                                # Value for holding the number of points integrated
             self.tabAvg.label_veVc.setText("{:0.3f} VE/VCO2".format(0.00))
+            self.maxCo2Val = 0
+            self.tabAvg.label_percPk.setText("{:0.3f} % Peak CO2".format(self.maxCo2Val))
 
+            self.volBreathsQ = collections.deque([], 100)
+            self.tabAvg.label_vol.setText("{:0.3f} L Air".format(0))
+            self.volFlag = False
         except:
             print("Could not reset!")
     # Function for changing the save file
@@ -897,6 +908,7 @@ class MainUI(QMainWindow):
                 cwriter = csv.writer(csvfile, delimiter=',',
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
                 cwriter.writerow([flowNow,n,None,None,None,None,None,None])
+            self.volBreath(n)
 
 
         # This section operates the data updates relating to co2 meter readings.   
@@ -914,6 +926,8 @@ class MainUI(QMainWindow):
                 cwriter.writerow([None,None,now,n,None,None,None,None])
             
             self.veVco2(n)
+
+            self.co2Max(n)
             # Apply the new deques as curve data.
             self.graphWindow.curve2.setData(self.coX, self.coY)
             self.graphWindow.curve3.setData(self.coX, self.veVco2Val)
@@ -938,8 +952,41 @@ class MainUI(QMainWindow):
             self.tabAvg.label_veVc.setText("{:0.3f} VE/VCO2".format(1/(self.integratedCo/(self.integratedCoPts*.05))))
         else:
             self.veVco2Val.append(0)
-        
 
+    def co2Max(self, n):
+        
+        if (n > self.maxCo2Val):
+            self.maxCo2Val = n
+            self.tabAvg.label_percPk.setText("{:0.3f} % Peak CO2".format(self.maxCo2Val/10000))
+
+        return
+
+    def volBreath(self, n):
+        now = datetime.now()
+        if(self.volFlag == False):
+            if(n >= self.floTrig):
+                self.curVol.append(n*(5/6000))
+                self.volFlag = True
+            
+            else:
+                pass
+
+        if(self.volFlag == True):
+            if(n >= self.floTrig):
+                self.curVol.append(n*(5/6000))
+            
+            else:
+                self.volBreathsQ.append(sum(self.curVol))
+                self.tabCur.label_vol.setText("{:0.3f} L Air".format(self.volBreathsQ[-1]))
+                # Save the new VE reading.
+                with open(self.saveName, 'a', newline='') as csvfile:
+                    cwriter = csv.writer(csvfile, delimiter=',',
+                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
+                    cwriter.writerow([None,None,None,None,None,None,self.curVol,now])
+                self.curVol = collections.deque([], 500)
+                print(self.volBreathsQ)
+                self.tabAvg.label_vol.setText("{:0.3f} L Air".format(sum(self.volBreathsQ)/len(self.volBreathsQ)))
+                self.volFlag = False
 
 
 # Initial setup and function calls needed for operation
