@@ -224,6 +224,9 @@ class MainUI(QMainWindow):
         self.coTrig = 20000.0                                   # Value for trigger level of co2 integration in ppm
         self.integratedCo =  0.0                            # Value for holding the total integrated value of co2 over the test
         self.integratedCoPts = 0                                # Value for holding the number of points integrated
+        self.integratedCoLast =  0.0                            # Value for holding the total integrated value of co2 over the test
+        self.integratedCoPtsLast = 0                                # Value for holding the number of points integrated
+        
         self.integratedCoTime = collections.deque([now, now], 5)
         self.veVco2Val = collections.deque([0],500)                                # Value for holding the value 
         self.maxCo2Val = 0.0                                    # Maximum CO2 value read per session.
@@ -234,6 +237,7 @@ class MainUI(QMainWindow):
         self.stopVolTime = datetime.now()                                    # Initial datetime reference
         self.volFlag = False
         self.coFlag = False
+        self.veVco2Flag = False
 
         # Plot initialization
         self.graphWindow = pg.GraphicsWindow()
@@ -439,7 +443,7 @@ class MainUI(QMainWindow):
 
         # Set overall window settings.
         self.setWindowTitle("Breath Sensor v10.2")                                         # Name to appear in toolbar
-        self.resize(300, 150)                                                               # Default size (only used when not initialized in fullscreen)
+        self.setGeometry(300,150)                                                               # Default size (only used when not initialized in fullscreen)
         
         # Create a central widget and apply it to the ui object.
         self.centralWidget = QWidget()
@@ -593,6 +597,9 @@ class MainUI(QMainWindow):
 
 
         # Assign each widget to a grid layout
+        sizePolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        sizePolicy.setHorizontalStretch(18)
+        sizePolicy.setVerticalStretch(10)
         layout = QGridLayout()
         layout.addWidget(self.tabs, 0, 0, 4, 4)
         layout.addWidget(self.groupBox_reset, 0, 4, 4, 1)
@@ -938,7 +945,82 @@ class MainUI(QMainWindow):
             
 
     def veVco2(self, n):
-        
+        now = datetime.now()
+        #vcoNow = now.timestamp()
+
+        if(self.coFlag == False):
+            if(n >= self.coTrig):
+                                                  # Initial datetime reference
+                self.integratedCoTime.append(now)
+
+                #print((self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds())
+                if ((self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() > 0.06 or (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() < 0.04):
+                    self.integratedCo = self.integratedCo + ((n / 1000000) * 0.05)
+            
+                else:
+                    self.integratedCo = self.integratedCo + ((n / 1000000) * (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds())
+            
+                self.integratedCoPts = self.integratedCoPts + 1
+                self.veVco2Val.append(1/(self.integratedCo/(self.integratedCoPts*.05)))
+                self.tabAvg.label_veVc.setText("{:0.3f} VE/VCO2".format(1/(self.integratedCo/(self.integratedCoPts*.05))))
+
+                if ((self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() > 0.06 or (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() < 0.04):
+                    self.integratedCoLast = self.integratedCoLast + ((n / 1000000) * 0.05)
+            
+                else:
+                    self.integratedCoLast = self.integratedCoLast + ((n / 1000000) * (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds())
+                self.integratedCoPtsLast = self.integratedCoPtsLast + 1
+                self.tabCur.label_veVc.setText("{:0.3f} VE/VCO2".format(1/(self.integratedCoLast/(self.integratedCoPtsLast*.05))))
+
+            else:
+                self.veVco2Val.append(0)
+
+        if(self.coFlag == True):
+            if(n >= self.coTrig):
+                self.integratedCoTime.append(now)
+
+                #print((self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds())
+                if ((self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() > 0.06 or (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() < 0.04):
+                    self.integratedCo = self.integratedCo + ((n / 1000000) * 0.05)
+            
+                else:
+                    self.integratedCo = self.integratedCo + ((n / 1000000) * (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds())
+            
+                self.integratedCoPts = self.integratedCoPts + 1
+                self.veVco2Val.append(1/(self.integratedCo/(self.integratedCoPts*.05)))
+                self.tabAvg.label_veVc.setText("{:0.3f} VE/VCO2".format(1/(self.integratedCo/(self.integratedCoPts*.05))))
+                
+                if ((self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() > 0.06 or (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() < 0.04):
+                    self.integratedCoLast = self.integratedCoLast + ((n / 1000000) * 0.05)
+            
+                else:
+                    self.integratedCoLast = self.integratedCoLast + ((n / 1000000) * (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds())
+                self.integratedCoPtsLast = self.integratedCoPtsLast + 1
+                self.tabCur.label_veVc.setText("{:0.3f} VE/VCO2".format(1/(self.integratedCoLast/(self.integratedCoPtsLast*.05))))
+
+            else:
+                
+                # Save the new breat Ve / VCO2 reading.
+                with open(self.saveName, 'a', newline='') as csvfile:
+                    cwriter = csv.writer(csvfile, delimiter=',',
+                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
+                    cwriter.writerow([None,None,None,None,None,None,now,1/(self.integratedCoLast/(self.integratedCoPtsLast*.05)),None,None])
+                
+                self.integratedCoLast = 0.0
+                self.integratedCoPtsLast = 0
+                self.veVco2Val.append(0)
+
+        return
+
+
+
+
+
+
+
+
+
+
         if (n > self.coTrig):
             now = datetime.now()                                    # Initial datetime reference
             self.integratedCoTime.append(now)
@@ -959,7 +1041,7 @@ class MainUI(QMainWindow):
     def co2Max(self, n):
     
         now = datetime.now()
-        coNow = now.timestamp()
+        #coNow = now.timestamp()
 
         if(self.coFlag == False):
             if(n >= self.coTrig):
@@ -985,7 +1067,7 @@ class MainUI(QMainWindow):
                 with open(self.saveName, 'a', newline='') as csvfile:
                     cwriter = csv.writer(csvfile, delimiter=',',
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
-                    cwriter.writerow([None,None,None,None,None,None,None,None,coNow,self.maxCo2ValLast])
+                    cwriter.writerow([None,None,None,None,None,None,None,None,now,self.maxCo2ValLast])
                 
                 self.maxCo2ValLast = 0.0
                 
@@ -997,7 +1079,7 @@ class MainUI(QMainWindow):
 
     def volBreath(self, n):
         now = datetime.now()
-        volNow = now.timestamp()
+        #volNow = now.timestamp()
         if(self.volFlag == False):
             if(n >= self.floTrig):
                 self.curVol.append(n*(5/6000))
@@ -1017,7 +1099,7 @@ class MainUI(QMainWindow):
                 with open(self.saveName, 'a', newline='') as csvfile:
                     cwriter = csv.writer(csvfile, delimiter=',',
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
-                    cwriter.writerow([None,None,None,None,volNow,self.volBreathsQ[-1],None,None,None,None])
+                    cwriter.writerow([None,None,None,None,now,self.volBreathsQ[-1],None,None,None,None])
                 self.curVol = collections.deque([], 500)
                 
                 self.tabAvg.label_vol.setText("{:0.3f} L Air".format(sum(self.volBreathsQ)/len(self.volBreathsQ)))
