@@ -29,6 +29,7 @@ __status__ = "In Development"
 # Generic Imports
 import collections
 import re
+from unittest.util import _count_diff_all_purpose
 import serial
 import os
 import csv
@@ -226,7 +227,7 @@ class MainUI(QMainWindow):
         self.integratedCoPts = 0                                # Value for holding the number of points integrated
         self.integratedCoLast =  0.0                            # Value for holding the total integrated value of co2 over the test
         self.integratedCoPtsLast = 0                                # Value for holding the number of points integrated
-        
+        self.dseDeq = collections.deque([], 500)
         self.integratedCoTime = collections.deque([now, now], 5)
         self.veVco2Val = collections.deque([0],500)                                # Value for holding the value 
         self.maxCo2Val = 0.0                                    # Maximum CO2 value read per session.
@@ -238,7 +239,8 @@ class MainUI(QMainWindow):
         self.volFlag = False
         self.coFlag = False
         self.veVco2Flag = False
-
+        self.floDatTime = collections.deque([now, now], 5)
+        
         # Plot initialization
         self.graphWindow = pg.GraphicsWindow()
         self.graphWindow.setMinimumSize(400,400)
@@ -270,7 +272,7 @@ class MainUI(QMainWindow):
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         self.tabs.setSizePolicy(sizePolicy)
-        self.tabs.setFixedWidth(1)
+        self.tabs.setFixedWidth(350)
 
         # Set up a groupbox inside the second tab to recieve tab details
         # Needed as directly placing the display will alter size on some screen dimensions.
@@ -329,11 +331,23 @@ class MainUI(QMainWindow):
         QGroup.label_vol.setAlignment(Qt.AlignCenter)                                       # Align to center of cell. Better for alignment of rapidly changing numbers.
         QGroup.gridLayout.addWidget(QGroup.label_vol, 2, 0, 1, 1)                           # Add to grid in top middle position [x , y , x stretch, y stretch]
 
+        QGroup.label_dse = QLabel(QGroup)
+        font = QtGui.QFont()
+        font.setPointSize(20)                                                               # Font size to be used. 20 is minimum for "at-a-glance" readability.
+        QGroup.label_dse.setFont(font)
+        sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)              # Use size policy to control grid placement intended for 2-3
+        sizePolicy.setHorizontalStretch(1)
+        sizePolicy.setVerticalStretch(3)
+        QGroup.label_dse.setSizePolicy(sizePolicy)
+        QGroup.label_dse.setStyleSheet("color: rgb(255, 255, 255);")                        # Set text color to white.
+        QGroup.label_dse.setAlignment(Qt.AlignCenter)                                       # Align to center of cell. Better for alignment of rapidly changing numbers.
+        QGroup.gridLayout.addWidget(QGroup.label_dse, 2, 1, 1, 1)                           # Add to grid in top middle position [x , y , x stretch, y stretch]
+
         # Setup label to display ve/vco2 information
         # Takes use 0 for inital value, and vol / vol CO2 for all nonzero Co2 readings.
         QGroup.label_veVc = QLabel(QGroup)
         font = QtGui.QFont()
-        font.setPointSize(34)                                                               # Font size to be used. 12 is used to appear smaller than volume readouts. 12 is minimum for readability.
+        font.setPointSize(30)                                                               # Font size to be used. 12 is used to appear smaller than volume readouts. 12 is minimum for readability.
         QGroup.label_veVc.setFont(font)
         sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)                                                  # Set 0 stretch to fill line.
@@ -341,7 +355,7 @@ class MainUI(QMainWindow):
         QGroup.label_veVc.setSizePolicy(sizePolicy)
         QGroup.label_veVc.setStyleSheet("color: rgb(255, 255, 255);")                       # Set text color to white.
         QGroup.label_veVc.setAlignment(Qt.AlignCenter)                                      # Align to center of cell. Better for alignment of rapidly changing numbers.
-        QGroup.gridLayout.addWidget(QGroup.label_veVc, 1, 0, 1, 1)                          # Add to grid in 3rd middle position [x , y , x stretch, y stretch]
+        QGroup.gridLayout.addWidget(QGroup.label_veVc, 1, 0, 1, 2)                          # Add to grid in 3rd middle position [x , y , x stretch, y stretch]
 
         # Setup Label to display peak CO2 % information
         # Takes self.perkPkVal as a variable to convert to a display string.
@@ -356,13 +370,14 @@ class MainUI(QMainWindow):
         QGroup.label_percPk.setSizePolicy(sizePolicy)
         QGroup.label_percPk.setStyleSheet("color: rgb(255, 255, 255);")                     # Set text color to white. 
         QGroup.label_percPk.setAlignment(Qt.AlignCenter)                                    # Align to center of cell. Better for rapidly changing numbers.
-        QGroup.gridLayout.addWidget(QGroup.label_percPk, 3, 0, 1, 1)                        # Add to grid in 4th middle position [x , y , x stretch, y stretch]
+        QGroup.gridLayout.addWidget(QGroup.label_percPk, 3, 0, 1, 2)                        # Add to grid in 4th middle position [x , y , x stretch, y stretch]
 
         # Set the text strings to be initially displayed
         QGroup.label_title.setText("Calculated Breath Information")
         QGroup.label_vol.setText("{} L Air".format(self.currentVal))
         QGroup.label_veVc.setText("{} VE/VCO2".format(self.currentVeVco2))
         QGroup.label_percPk.setText("{} % Peak CO2".format(self.percPkVal))
+        QGroup.label_dse.setText("{} L DSe".format(self.currentVal))
 
 
     # Function for initializing save file
@@ -623,7 +638,8 @@ class MainUI(QMainWindow):
             self.tabAvg.label_veVc.setText("{:0.3f} VE/VCO2".format(0.00))
             self.maxCo2Val = 0
             self.tabAvg.label_percPk.setText("{:0.3f} % Peak CO2".format(self.maxCo2Val))
-
+            self.dseDeq = collections.deque([], 500)
+            self.tabAvg.label_dse.setText("{:0.3f} L DSe".format(0))
             self.volBreathsQ = collections.deque([], 100)
             self.tabAvg.label_vol.setText("{:0.3f} L Air".format(0))
             self.volFlag = False
@@ -974,6 +990,18 @@ class MainUI(QMainWindow):
                 self.integratedCoPtsLast = self.integratedCoPtsLast + 1
                 self.tabCur.label_veVc.setText("{:0.3f} VE/VCO2".format(1/(self.integratedCoLast/(self.integratedCoPtsLast*.05))))
 
+                if((self.integratedCoTime[-1]-self.floDatTime[-1]).total_seconds() >0):
+                    curdse = sum(self.curVol)
+                    self.tabCur.label_dse.setText("{:0.3f} L DSe".format(curdse))
+
+                    self.dseDeq.append(sum(self.curVol))
+                    avgdse = (sum(self.dseDeq) / len(self.dseDeq))
+                    self.tabAvg.label_dse.setText("{:0.3f} L DSe".format(avgdse))
+
+                    
+
+            
+
             else:
                 self.veVco2Val.append(0)
 
@@ -1014,32 +1042,6 @@ class MainUI(QMainWindow):
 
         return
 
-
-
-
-
-
-
-
-
-
-        if (n > self.coTrig):
-            now = datetime.now()                                    # Initial datetime reference
-            self.integratedCoTime.append(now)
-
-            #print((self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds())
-            if ((self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() > 0.06 or (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() < 0.04):
-                self.integratedCo = self.integratedCo + ((n / 1000000) * 0.05)
-            
-            else:
-                self.integratedCo = self.integratedCo + ((n / 1000000) * (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds())
-            
-            self.integratedCoPts = self.integratedCoPts + 1
-            self.veVco2Val.append(1/(self.integratedCo/(self.integratedCoPts*.05)))
-            self.tabAvg.label_veVc.setText("{:0.3f} VE/VCO2".format(1/(self.integratedCo/(self.integratedCoPts*.05))))
-        else:
-            self.veVco2Val.append(0)
-
     def co2Max(self, n):
     
         now = datetime.now()
@@ -1052,7 +1054,7 @@ class MainUI(QMainWindow):
 
                 self.maxCo2ValLast = n
                 self.coFlag = True
-            
+
             else:
                 pass
 
@@ -1064,7 +1066,7 @@ class MainUI(QMainWindow):
                     self.maxCo2ValLast = n
             
             else:
-                self.tabCur.label_percPk.setText("{:0.3f}%".format(self.maxCo2ValLast/10000))
+                self.tabCur.label_percPk.setText("{:0.3f}% Peak CO2".format(self.maxCo2ValLast/10000))
                 # Save the new Peak CO2 reading.
                 with open(self.saveName, 'a', newline='') as csvfile:
                     cwriter = csv.writer(csvfile, delimiter=',',
@@ -1073,7 +1075,7 @@ class MainUI(QMainWindow):
                 
                 self.maxCo2ValLast = 0.0
                 
-                self.tabAvg.label_percPk.setText("{:0.3f}%".format(self.maxCo2Val/10000))
+                self.tabAvg.label_percPk.setText("{:0.3f}% Peak CO2".format(self.maxCo2Val/10000))
                 self.coFlag = False
 
         return
@@ -1086,7 +1088,7 @@ class MainUI(QMainWindow):
             if(n >= self.floTrig):
                 self.curVol.append(n*(5/6000))
                 self.volFlag = True
-            
+                self.floDatTime.append(now)
             else:
                 pass
 
