@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Breath Sensor UI and Monitor Program Version 10.1
+# Breath Sensor UI and Monitor Program Version 10.2
 
 # Python 3.9.5 64-bit Windows
 
@@ -18,7 +18,7 @@ __author__ = "Joshua Hale"
 #__copyright__ = 'Copyright {year}, {project_name}'
 __credits__ = ["Joshua Hale"]
 #__license__ = '{license}'
-__version__ = "10.1"
+__version__ = "10.2"
 __maintainer__ = "Joshua Hale"
 __email__ = "averyhale95@gmail.com"
 __status__ = "In Development"
@@ -50,7 +50,7 @@ from PyQt5 import QtGui, QtSerialPort
 
 
 ### Import section for test files
-df = pd.read_csv (r'Hale 3 br types.csv')
+df = pd.read_csv (r'Testing Breath File.csv')
 
 dffl = df['Flow SLPM']
 dffl = dffl.dropna()
@@ -436,7 +436,7 @@ class MainUI(QMainWindow):
         sizePolicy.setVerticalStretch(10)
 
         # Set overall window settings.
-        self.setWindowTitle("Breath Sensor v9.0.1")                                         # Name to appear in toolbar
+        self.setWindowTitle("Breath Sensor v10.2")                                         # Name to appear in toolbar
         self.resize(300, 150)                                                               # Default size (only used when not initialized in fullscreen)
         
         # Create a central widget and apply it to the ui object.
