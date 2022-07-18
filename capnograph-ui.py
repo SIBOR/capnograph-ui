@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Breath Sensor UI and Monitor Program Version 10.2
+# Breath Sensor UI and Monitor Program Version 10.3
 
 # Python 3.9.5 64-bit Windows
 
@@ -18,7 +18,7 @@ __author__ = "Joshua Hale"
 #__copyright__ = 'Copyright {year}, {project_name}'
 __credits__ = ["Joshua Hale"]
 #__license__ = '{license}'
-__version__ = "10.2"
+__version__ = "10.3"
 __maintainer__ = "Joshua Hale"
 __email__ = "averyhale95@gmail.com"
 __status__ = "In Development"
@@ -51,8 +51,9 @@ from PyQt5 import QtGui, QtSerialPort
 
 
 ### Import section for test files
-df = pd.read_csv (r'Testing Breath File.csv')
+df = pd.read_csv (r'demoBreaths.csv')
 
+# Bring in data for CO2 and Flow simulation
 dffl = df['Flow SLPM']
 dffl = dffl.dropna()
 dffl = dffl.reset_index(drop=True)
@@ -206,40 +207,40 @@ class MainUI(QMainWindow):
         super().__init__(parent)
 
         # Class Variables
-        now = datetime.now()                                    # Initial datetime reference
-        xTime = now.timestamp()                                 # Timestamp conversion of datetime reference
-        self.saveName = 'SaveLog.csv'                           # Default save name for output file (stored in operating folder)
-        self.currentVal = 0.000                                 # Container value for last total volume measurement.
-        self.currentCoVal = 0.000                               # Container value for last total volume CO2 calculation.
-        self.percPkVal = 0.000                                  # Container value for peak CO2 %.
-        self.currentVeVco2 = 0.0                                # Container value for ve/vco2 calculation
-        self.flowX = collections.deque([xTime], 500)            # Deque holding X datetime values for flow meter readings. Size may be changed by user in setDataPts and will be re-initialized.
-        self.flowY = collections.deque([0], 500)                # Deque holding y slpm values for flow meter readings. Size may be changed by user in setDataPts and will be re-initialized.
-        self.coX = collections.deque([xTime], 500)              # Deque holding X datetime values for co2 meter readings. Size may be changed by user in setDataPts and will be re-initialized.
-        self.coY = collections.deque([0], 500)                  # Deque holding y ppm values for co2 meter readings. Size may be changed by user in setDataPts and will be re-initialized.
-        self.integX = collections.deque([xTime], 500)           # Deque holding X datetime values for integrated flow meter readings. Size may be changed by user in setDataPts and will be re-initialized.
-        self.integY = collections.deque([0], 500)               # Deque holding y integrated flow values. Size may be changed by user in setDataPts and will be re-initialized.
-        self.veVco2X = collections.deque([xTime], 500)          # Deque holding x datetime values for ve/Vco2 calculations
-        self.veVco2Y = collections.deque([0], 500)              # Deque holding y values for ve/Vco2 calculations
-        self.floTrig = 10.0                                      # Value for trigger level of flow integration in SLPM
-        self.coTrig = 20000.0                                   # Value for trigger level of co2 integration in ppm
-        self.integratedCo =  0.0                            # Value for holding the total integrated value of co2 over the test
-        self.integratedCoPts = 0                                # Value for holding the number of points integrated
-        self.integratedCoLast =  0.0                            # Value for holding the total integrated value of co2 over the test
+        now = datetime.now()                                        # Initial datetime reference
+        xTime = now.timestamp()                                     # Timestamp conversion of datetime reference
+        self.saveName = 'SaveLog.csv'                               # Default save name for output file (stored in operating folder)
+        self.currentVal = 0.000                                     # Container value for last total volume measurement.
+        self.currentCoVal = 0.000                                   # Container value for last total volume CO2 calculation.
+        self.percPkVal = 0.000                                      # Container value for peak CO2 %.
+        self.currentVeVco2 = 0.0                                    # Container value for ve/vco2 calculation
+        self.flowX = collections.deque([xTime], 500)                # Deque holding X datetime values for flow meter readings. Size may be changed by user in setDataPts and will be re-initialized.
+        self.flowY = collections.deque([0], 500)                    # Deque holding y slpm values for flow meter readings. Size may be changed by user in setDataPts and will be re-initialized.
+        self.coX = collections.deque([xTime], 500)                  # Deque holding X datetime values for co2 meter readings. Size may be changed by user in setDataPts and will be re-initialized.
+        self.coY = collections.deque([0], 500)                      # Deque holding y ppm values for co2 meter readings. Size may be changed by user in setDataPts and will be re-initialized.
+        self.integX = collections.deque([xTime], 500)               # Deque holding X datetime values for integrated flow meter readings. Size may be changed by user in setDataPts and will be re-initialized.
+        self.integY = collections.deque([0], 500)                   # Deque holding y integrated flow values. Size may be changed by user in setDataPts and will be re-initialized.
+        self.veVco2X = collections.deque([xTime], 500)              # Deque holding x datetime values for ve/Vco2 calculations
+        self.veVco2Y = collections.deque([0], 500)                  # Deque holding y values for ve/Vco2 calculations
+        self.floTrig = 10.0                                         # Value for trigger level of flow integration in SLPM
+        self.coTrig = 20000.0                                       # Value for trigger level of co2 integration in ppm
+        self.integratedCo =  0.0                                    # Value for holding the total integrated value of co2 over the test
+        self.integratedCoPts = 0                                    # Value for holding the number of points integrated
+        self.integratedCoLast =  0.0                                # Value for holding the total integrated value of co2 over the test
         self.integratedCoPtsLast = 0                                # Value for holding the number of points integrated
-        self.dseDeq = collections.deque([], 500)
-        self.integratedCoTime = collections.deque([now, now], 5)
-        self.veVco2Val = collections.deque([0],500)                                # Value for holding the value 
-        self.maxCo2Val = 0.0                                    # Maximum CO2 value read per session.
-        self.maxCo2ValLast = 0.0
+        self.dseDeq = collections.deque([], 500)                    # Value for holding dead space estimate data points
+        self.integratedCoTime = collections.deque([now, now], 5)    # Value for holding integrations for per-breath readings
+        self.veVco2Val = collections.deque([0],500)                 # Value for holding the value 
+        self.maxCo2Val = 0.0                                        # Maximum CO2 value read per session.
+        self.maxCo2ValLast = 0.0                                    # Stores previous max values for averaging
         self.volBreathsQ = collections.deque([], 100)               # Deque for holding volume of each breath average is displayed
-        self.curVol = collections.deque([0], 500)                                      # Variable holding current breath volume
-        self.startVolTime = datetime.now()                                    # Initial datetime reference
-        self.stopVolTime = datetime.now()                                    # Initial datetime reference
-        self.volFlag = False
-        self.coFlag = False
-        self.veVco2Flag = False
-        self.floDatTime = collections.deque([now, now], 5)
+        self.curVol = collections.deque([0], 500)                   # Variable holding current breath volume
+        self.startVolTime = datetime.now()                          # Initial datetime reference
+        self.stopVolTime = datetime.now()                           # Initial datetime reference
+        self.volFlag = False                                        # Flag used for per-breath volume triggering
+        self.coFlag = False                                         # Flag used for per-breath CO2 triggering
+        self.veVco2Flag = False                                     # Flag used for Ve / VCO2 triggering per-breath
+        self.floDatTime = collections.deque([now, now], 5)          # Deque for measuring per-breath volume using timestamp point spreads
         
         # Plot initialization
         self.graphWindow = pg.GraphicsWindow()
@@ -633,18 +634,20 @@ class MainUI(QMainWindow):
     def resetAvg(self):
         try:
             now = datetime.now()
-            self.integratedCo =  0.0                            # Value for holding the total integrated value of co2 over the test
-            self.integratedCoPts = 0                                # Value for holding the number of points integrated
-            self.tabAvg.label_veVc.setText("{:0.3f} VE/VCO2".format(0.00))
-            self.maxCo2Val = 0
-            self.tabAvg.label_percPk.setText("{:0.3f} % Peak CO2".format(self.maxCo2Val))
-            self.dseDeq = collections.deque([], 500)
-            self.tabAvg.label_dse.setText("{:0.3f} L DSe".format(0))
-            self.volBreathsQ = collections.deque([], 100)
-            self.tabAvg.label_vol.setText("{:0.3f} L Air".format(0))
-            self.volFlag = False
+            self.integratedCo =  0.0                                                        # Value for holding the total integrated value of co2 over the test
+            self.integratedCoPts = 0                                                        # Value for holding the number of points integrated
+            self.tabAvg.label_veVc.setText("{:0.3f} VE/VCO2".format(0.00))                  # Reset the display for VE / VCO2
+            self.maxCo2Val = 0                                                              # Reset the container value for max co2
+            self.tabAvg.label_percPk.setText("{:0.3f} % Peak CO2".format(self.maxCo2Val))   # Reset the display for average % co2 peak
+            self.dseDeq = collections.deque([], 500)                                        # Reset container for Dead space estimate
+            self.tabAvg.label_dse.setText("{:0.3f} L DSe".format(0))                        # Reset the display for dead space estimate
+            self.volBreathsQ = collections.deque([], 100)                                   # Reset the container for volume of breaths
+            self.tabAvg.label_vol.setText("{:0.3f} L Air".format(0))                        # Reset the display for current breath volume
+            self.volFlag = False                                                            # Reset the volume integration flag ( NEEDED FOR CALCULATIONS)
         except:
             print("Could not reset!")
+
+
     # Function for changing the save file
     # Uses the user entry for self.linedit_savename as a file name.
     # Can have poor results if file is not named as a standard name.csv.
@@ -732,8 +735,8 @@ class MainUI(QMainWindow):
                 self.integX = collections.deque([xTime], newVal)           # Deque holding X datetime values for integrated flow meter readings. Size may be changed by user in setDataPts and will be re-initialized.
                 self.integY = collections.deque([0], newVal)               # Deque holding y integrated flow values. Size may be changed by user in setDataPts and will be re-initialized.
                 self.veVco2X = collections.deque([xTime], newVal)          # Deque holding x datetime values for ve/Vco2 calculations
-                self.veVco2Y = collections.deque([0], newVal)  
-                self.veVco2Val = collections.deque([0],newVal)
+                self.veVco2Y = collections.deque([0], newVal)              # Deque holding y values for ve/vco2 calculations 
+                self.veVco2Val = collections.deque([0],newVal)             # Deque holding vevco2 values
         
             # Nothing will change if the user entry fails to convert to an integer.
             except:
@@ -845,7 +848,7 @@ class MainUI(QMainWindow):
         self.worker = FlowSensorWorker()                        # Worker object for thread.
         self.worker.moveToThread(self.thread)                   # Move the worker into the thread.
 
-        # Connect signals and slots to otehr functions.
+        # Connect signals and slots to other functions.
         self.thread.started.connect(self.worker.run)
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
@@ -917,19 +920,8 @@ class MainUI(QMainWindow):
             self.flowX.append(flowXTime)
             self.flowY.append(n)
 
-            # Try to perform integration math.
-            try:
-                self.integY.append(0) # TODO Replace with real
-                self.integX.append(flowXTime)
-            # If the integrator fails, the result is expected to be zero.
-            # The integrator should give its own error message.
-            except:
-                self.integX.append(flowXTime)
-                self.integY.append(0)
-
             # Apply the changed data sets as new curves.
             self.graphWindow.curve1.setData(self.flowX, self.flowY)
-            self.graphWindow.curve4.setData(self.integX, self.integY)
 
             # Save the new flow information
             with open(self.saveName, 'a', newline='') as csvfile:
@@ -953,41 +945,53 @@ class MainUI(QMainWindow):
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
                 cwriter.writerow([None,None,now,n,None,None,None,None,None,None])
             
+            # Call function for calculating per-breath readings
             self.veVco2(n)
-
             self.co2Max(n)
+            
             # Apply the new deques as curve data.
             self.graphWindow.curve2.setData(self.coX, self.coY)
             self.graphWindow.curve3.setData(self.coX, self.veVco2Val)
+            self.graphWindow.curve4.setData(self.integX,self.integY)
 
             
 
     def veVco2(self, n):
-        now = datetime.now()
-        #vcoNow = now.timestamp()
+        now = datetime.now()    # Initial datetime reference
 
+        # This block handles readings obtained while below or first reaching the co2 trigger
         if(self.coFlag == False):
-            if(n >= self.coTrig):
-                                                  # Initial datetime reference
-                self.integratedCoTime.append(now)
-
-                #print((self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds())
-                if ((self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() > 0.06 or (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() < 0.04):
-                    self.integratedCo = self.integratedCo + ((n / 1000000) * 0.05)
             
+            # This block handles first passing the trigger level
+            if(n >= self.coTrig):
+
+                self.integratedCoTime.append(now)   # Add the timestamp to the deque
+                
+                # Check to see that the time split between readings is inside the normal range (4ms to 6 ms) if it is outside this range, force a 5ms split
+                if ((self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() > 0.06 or (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() < 0.04):
+                    self.integratedCo = self.integratedCo + ((n / 1000000) * 0.05)  # Add the current reading times 5ms to the integration deque. (adjusted from ppm to a decimal value)
+
+                # If the time split is inside the normal range multiply the time split times the current reading(corrected from ppm to a decimal value.)
                 else:
                     self.integratedCo = self.integratedCo + ((n / 1000000) * (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds())
-            
+
+
+                # Calculate the ve/vco2 from the integrated values from the previous deque
                 self.integratedCoPts = self.integratedCoPts + 1
                 self.veVco2Val.append(1/(self.integratedCo/(self.integratedCoPts*.05)))
+                # Update the current ui text
                 self.tabAvg.label_veVc.setText("{:0.3f} VE/VCO2".format(1/(self.integratedCo/(self.integratedCoPts*.05))))
 
+                # Perform calculations again for per-breath values
+                # check to see if time split is outside the normal 4ms to 6 ms range, if so force a 5ms split
                 if ((self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() > 0.06 or (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() < 0.04):
                     self.integratedCoLast = self.integratedCoLast + ((n / 1000000) * 0.05)
-            
+
+                # If split is inside the normal range, calculate the split and multiply by the current reading
                 else:
                     self.integratedCoLast = self.integratedCoLast + ((n / 1000000) * (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds())
                 self.integratedCoPtsLast = self.integratedCoPtsLast + 1
+                # Update the current ui text
                 self.tabCur.label_veVc.setText("{:0.3f} VE/VCO2".format(1/(self.integratedCoLast/(self.integratedCoPtsLast*.05))))
 
                 if((self.integratedCoTime[-1]-self.floDatTime[-1]).total_seconds() >0):
@@ -998,36 +1002,46 @@ class MainUI(QMainWindow):
                     avgdse = (sum(self.dseDeq) / len(self.dseDeq))
                     self.tabAvg.label_dse.setText("{:0.3f} L DSe".format(avgdse))
 
-                    
-
-            
-
+            # When not triggering, set readings to zero
             else:
                 self.veVco2Val.append(0)
 
+        # This block handles readings obtained while currently triggering
         if(self.coFlag == True):
+
+            # While incoming values are still above the trigger
             if(n >= self.coTrig):
+                # Add time reference to the deque
                 self.integratedCoTime.append(now)
 
-                #print((self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds())
+                ## Calculate the running average values
+
+                # Check to see if the time split is outside the normal 4ms to 6 ms range
                 if ((self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() > 0.06 or (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() < 0.04):
                     self.integratedCo = self.integratedCo + ((n / 1000000) * 0.05)
             
+                # If the time split is inside the normal range, multiply the time split by the current reading
                 else:
                     self.integratedCo = self.integratedCo + ((n / 1000000) * (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds())
             
+                # Calculate the new VE/VCO2 and update the UI
                 self.integratedCoPts = self.integratedCoPts + 1
                 self.veVco2Val.append(1/(self.integratedCo/(self.integratedCoPts*.05)))
                 self.tabAvg.label_veVc.setText("{:0.3f} VE/VCO2".format(1/(self.integratedCo/(self.integratedCoPts*.05))))
                 
+                ## Calculate the values for the current breath value
+                # Check to see if the new reading is outside the normal range of 4-6ms. if so, correct it to 5ms
                 if ((self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() > 0.06 or (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds() < 0.04):
                     self.integratedCoLast = self.integratedCoLast + ((n / 1000000) * 0.05)
-            
+
+                # If the new reading is inside the normal range, multiply it by the current reading and add it to the deque
                 else:
                     self.integratedCoLast = self.integratedCoLast + ((n / 1000000) * (self.integratedCoTime[-1]-self.integratedCoTime[-2]).total_seconds())
+                
                 self.integratedCoPtsLast = self.integratedCoPtsLast + 1
                 self.tabCur.label_veVc.setText("{:0.3f} VE/VCO2".format(1/(self.integratedCoLast/(self.integratedCoPtsLast*.05))))
 
+            # This section executes when falling below the trigger value for the first time
             else:
                 
                 # Save the new breat Ve / VCO2 reading.
@@ -1036,6 +1050,7 @@ class MainUI(QMainWindow):
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
                     cwriter.writerow([None,None,None,None,None,None,now,1/(self.integratedCoLast/(self.integratedCoPtsLast*.05)),None,None])
                 
+                #Reset the per-breath values and begin reading zero for first non-triggered value
                 self.integratedCoLast = 0.0
                 self.integratedCoPtsLast = 0
                 self.veVco2Val.append(0)
@@ -1043,10 +1058,11 @@ class MainUI(QMainWindow):
         return
 
     def co2Max(self, n):
-    
+        
+        # Set time reference
         now = datetime.now()
-        #coNow = now.timestamp()
 
+        # While not triggered, check to see if new value has passed trigger. Pass if not, begin checking for maximum if the value is above the trigger.
         if(self.coFlag == False):
             if(n >= self.coTrig):
                 if(n > self.maxCo2Val):
@@ -1057,7 +1073,8 @@ class MainUI(QMainWindow):
 
             else:
                 pass
-
+        
+        # While triggering, check for new maximums, and reset the per-breath maximum once readings are below the trigger value
         if(self.coFlag == True):
             if(n >= self.coTrig):
                 if(n > self.maxCo2Val):
@@ -1066,6 +1083,7 @@ class MainUI(QMainWindow):
                     self.maxCo2ValLast = n
             
             else:
+                # Display new max as a percentage
                 self.tabCur.label_percPk.setText("{:0.3f}% Peak CO2".format(self.maxCo2ValLast/10000))
                 # Save the new Peak CO2 reading.
                 with open(self.saveName, 'a', newline='') as csvfile:
@@ -1075,6 +1093,7 @@ class MainUI(QMainWindow):
                 
                 self.maxCo2ValLast = 0.0
                 
+                # Display new max as a percentage
                 self.tabAvg.label_percPk.setText("{:0.3f}% Peak CO2".format(self.maxCo2Val/10000))
                 self.coFlag = False
 
@@ -1082,31 +1101,54 @@ class MainUI(QMainWindow):
     
 
     def volBreath(self, n):
+
+        #Set intitial time reference
         now = datetime.now()
-        #volNow = now.timestamp()
+        volNow = now.timestamp()
+
+        # This block runs if the flow is not triggered
         if(self.volFlag == False):
+
+            # If the new value is above the trigger level, begin integrating volume. Append to data containers and set flag.
             if(n >= self.floTrig):
                 self.curVol.append(n*(5/6000))
                 self.volFlag = True
                 self.floDatTime.append(now)
+                self.integX.append(volNow)
+                self.integY.append(self.integY[-1])
+            
+            # If the new value is below the trigger, append the previous volume as the value has not changed
             else:
-                pass
+                self.integX.append(volNow)
+                self.integY.append(self.integY[-1])
 
+        # This block runs while the flow is above the trigger level
         if(self.volFlag == True):
+            # If the new value is still above the trigger level, update volume containers
             if(n >= self.floTrig):
                 self.curVol.append(n*(5/6000))
-            
+                self.integX.append(volNow)
+                self.integY.append(self.integY[-1])
+
+            # If the new flow value falls below the trigger value, save the current volume reading and reset the per-breath containers.       
             else:
+                #Set current breath volume reading
                 self.volBreathsQ.append(sum(self.curVol))
                 self.tabCur.label_vol.setText("{:0.3f} L Air".format(self.volBreathsQ[-1]))
+
                 # Save the new VE reading.
                 with open(self.saveName, 'a', newline='') as csvfile:
                     cwriter = csv.writer(csvfile, delimiter=',',
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
                     cwriter.writerow([None,None,None,None,now,self.volBreathsQ[-1],None,None,None,None])
-                self.curVol = collections.deque([], 500)
                 
+                # Update the average breath by averaging in the last reading
+                self.curVol = collections.deque([], 500)
                 self.tabAvg.label_vol.setText("{:0.3f} L Air".format(sum(self.volBreathsQ)/len(self.volBreathsQ)))
+
+                # Update the plot data value container and reset the flag
+                self.integX.append(volNow)
+                self.integY.append(sum(self.volBreathsQ)/len(self.volBreathsQ))
                 self.volFlag = False
 
 
